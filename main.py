@@ -13,7 +13,7 @@ PERSONA_FILE = Path(os.getenv("PERSONA_FILE", BASE / "personas" / "bill.txt"))
 SYSTEM_PROMPT = PERSONA_FILE.read_text(encoding="utf-8").strip()
 
 BACKENDS = [(os.getenv("OLLAMA_URL", "http://127.0.0.1:11434"),
-             os.getenv("MODEL", "qwen3:1.7b"))]
+             os.getenv("MODEL", "qwen3:4b"))]
 if os.getenv("FALLBACK_URL"):
     BACKENDS.append((os.getenv("FALLBACK_URL"),
                      os.getenv("FALLBACK_MODEL", "qwen3:4b")))
