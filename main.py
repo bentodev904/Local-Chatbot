@@ -16,7 +16,7 @@ BACKENDS = [(os.getenv("OLLAMA_URL", "http://127.0.0.1:11434"),
              os.getenv("MODEL", "qwen3:1.7b"))]
 if os.getenv("FALLBACK_URL"):
     BACKENDS.append((os.getenv("FALLBACK_URL"),
-                     os.getenv("FALLBACK_MODEL", "qwen3:1.7b")))
+                     os.getenv("FALLBACK_MODEL", "qwen3:4b")))
 
 NUM_CTX = int(os.getenv("NUM_CTX", "4096"))
 NUM_PREDICT = int(os.getenv("NUM_PREDICT", "512"))
