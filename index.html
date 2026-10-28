@@ -3,116 +3,520 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Meu Chatbot</title>
+  <title>Local Chatbot — Canal ativo</title>
   <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0a101d; --panel: #111b2d; --raised: #19263d;
+      --border: #2c3e58; --text: #eff4fd; --muted: #99acc6;
+      --accent: #8eaaff; --rgb: 142,170,255; --on-accent: #10182b;
+      --secondary: #83e1cc; --radius: 20px;
+      --display: system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    html[data-persona="bill"] {
+      --bg: #0b1024; --panel: #141c36; --raised: #1e2a4b;
+      --border: #35436a; --text: #f4f4ff; --muted: #abb5d7;
+      --accent: #afb3ff; --rgb: 175,179,255; --on-accent: #14162c;
+      --secondary: #75e4ce;
+    }
+    html[data-persona="johnny"] {
+      --bg: #120d10; --panel: #1e161b; --raised: #2a1e24;
+      --border: #55363e; --text: #fff4ef; --muted: #bda6a7;
+      --accent: #ff635b; --rgb: 255,99,91; --on-accent: #270e12;
+      --secondary: #f6d071; --radius: 8px;
+      --display: "Arial Narrow", "Bahnschrift Condensed", Impact, system-ui, sans-serif;
+    }
     * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    html { min-height: 100%; }
     body {
-      margin: 0; background: #111827; color: #e5e7eb;
-      font: 16px system-ui, sans-serif;
+      margin: 0; min-height: 100vh; color: var(--text);
+      font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: radial-gradient(ellipse at 5% -10%, rgba(var(--rgb), .15), transparent 48%),
+        radial-gradient(ellipse at 100% 100%, rgba(var(--rgb), .07), transparent 40%), var(--bg);
+      transition: background-color .3s, color .3s;
     }
-    main { max-width: 800px; margin: auto; padding: 24px; }
-    h1 { margin-bottom: 8px; }
-    .descricao { color: #aebbd0; }
-    #mensagens { min-height: 35vh; margin: 24px 0; }
-    .mensagem {
-      padding: 16px; margin: 12px 0; border-radius: 12px;
-      white-space: pre-wrap; overflow-wrap: anywhere;
-      background: #1f2937; line-height: 1.6;
+    body::before {
+      content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+      background-image: linear-gradient(rgba(var(--rgb), .036) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(var(--rgb), .036) 1px, transparent 1px);
+      background-size: 54px 54px; mask-image: linear-gradient(black, transparent 85%);
     }
-    .usuario { background: #1e3a5f; }
-    .erro { border: 1px solid #f87171; }
-    label { display: block; margin-bottom: 8px; }
-    textarea {
-      width: 100%; padding: 12px; border: 1px solid #64748b;
-      border-radius: 8px; background: #1f2937; color: white;
-      font: inherit; resize: vertical;
+    html[data-persona="johnny"] body::after {
+      content: ""; position: fixed; inset: 0; z-index: 4; pointer-events: none; opacity: .07;
+      background: repeating-linear-gradient(0deg, rgba(0,0,0,.9) 0 1px, transparent 2px 5px);
     }
-    button {
-      margin-top: 12px; padding: 12px 24px; border: 0;
-      border-radius: 8px; background: #93c5fd; color: #111827;
-      font: inherit; font-weight: bold; cursor: pointer;
+    button, textarea { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+    .shell { width: min(1190px, 100%); padding: 27px 28px 20px; margin: 0 auto; }
+    .topbar, .brand, .top-right, .status, .panel-top, .panel-actions,
+    .message-title, .compose-head, .compose-foot, .footer { display: flex; align-items: center; }
+    .topbar { justify-content: space-between; gap: 20px; margin-bottom: 25px; }
+    .brand { gap: 12px; min-width: 0; }
+    .brand-logo {
+      width: 43px; height: 43px; border-radius: 12px; display: grid; place-items: center;
+      background: rgba(var(--rgb), .12); color: var(--accent);
+      border: 1px solid rgba(var(--rgb), .48); font: 800 25px var(--display);
     }
+    .overline, .mono, .profile-code, .micro-label, .model-pill, .message-title, .footer {
+      font: 700 11px/1.5 ui-monospace, Consolas, monospace; letter-spacing: .1em;
+    }
+    .overline { color: var(--accent); margin: 0 0 3px; }
+    .brand h1 { font: 800 20px/1.1 var(--display); letter-spacing: .02em; margin: 0; }
+    .top-right { gap: 15px; }
+    .status { gap: 9px; color: var(--muted); font-size: 12px; border: 1px solid var(--border); border-radius: 40px; padding: 9px 12px; white-space: nowrap; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: #f0ba68; box-shadow: 0 0 0 3px rgba(240,186,104,.15); }
+    .status[data-state="online"] .dot { background: #78d8b5; box-shadow: 0 0 0 3px rgba(120,216,181,.15); }
+    .status[data-state="error"] .dot { background: #fd777c; box-shadow: 0 0 0 3px rgba(253,119,124,.15); }
+    .version { font: 11px ui-monospace, monospace; color: var(--muted); }
+    .layout { display: grid; grid-template-columns: minmax(260px, 305px) minmax(0, 1fr); gap: 20px; }
+    .profile, .chat { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: 0 25px 85px rgba(0,0,0,.15); }
+    .profile { display: flex; flex-direction: column; padding: 17px; min-height: 670px; }
+    .portrait {
+      min-height: 226px; position: relative; overflow: hidden; display: grid; place-items: center;
+      border: 1px solid rgba(var(--rgb), .25); border-radius: calc(var(--radius) - 7px);
+      background: radial-gradient(circle at center, rgba(var(--rgb),.27), transparent 43%),
+        linear-gradient(140deg, var(--raised), var(--bg));
+    }
+    .portrait::before, .portrait::after {
+      content: ""; position: absolute; width: 185px; height: 185px; border-radius: 50%;
+      border: 1px solid rgba(var(--rgb), .3); transform: rotate(-24deg) scaleX(.74);
+    }
+    .portrait::after { width: 135px; height: 135px; border-style: dashed; transform: rotate(38deg) scaleX(.85); opacity: .6; }
+    .portrait-mark {
+      display: grid; place-items: center; position: relative; z-index: 1;
+      width: 113px; height: 113px; border: 2px solid rgba(var(--rgb), .7);
+      border-radius: 24px; transform: rotate(-7deg); background: rgba(var(--rgb), .15);
+      box-shadow: 0 0 65px rgba(var(--rgb), .23);
+      font: 800 43px var(--display);
+    }
+    .portrait-corner { position: absolute; color: var(--accent); font: 10px ui-monospace,monospace; letter-spacing: .1em; }
+    .portrait-corner.top { top: 15px; left: 14px; }
+    .portrait-corner.bottom { bottom: 13px; right: 14px; }
+    html[data-persona="johnny"] .portrait { background: linear-gradient(135deg, rgba(169,39,52,.24), transparent), repeating-linear-gradient(110deg,transparent 0 31px,rgba(255,99,91,.04) 32px),var(--raised); }
+    html[data-persona="johnny"] .portrait-mark { border-radius: 3px; clip-path: polygon(0 0,90% 0,100% 10%,100% 100%,10% 100%,0 90%); }
+    .profile-code { color: var(--accent); margin: 23px 0 8px; }
+    .persona-name { font: 800 clamp(25px, 3vw, 34px)/1.08 var(--display); margin: 0; letter-spacing: -.02em; }
+    html[data-persona="johnny"] .persona-name { text-transform: uppercase; letter-spacing: .015em; }
+    .persona-description { color: var(--muted); font-size: 13px; line-height: 1.65; margin: 12px 0 24px; }
+    .section-label { display: flex; gap: 10px; align-items: center; color: var(--muted); font: 700 10px ui-monospace,monospace; letter-spacing: .13em; text-transform: uppercase; }
+    .section-label::after { content: ""; height: 1px; flex: 1; background: var(--border); }
+    .prompts { display: grid; gap: 8px; margin-top: 13px; }
+    .prompt {
+      width: 100%; display: flex; gap: 12px; align-items: center; text-align: left;
+      background: var(--raised); border: 1px solid var(--border); color: var(--text);
+      border-radius: 10px; padding: 11px 12px; font-size: 12px; line-height: 1.4;
+      transition: border-color .2s, transform .2s;
+    }
+    .prompt span { color: var(--accent); font-size: 18px; }
+    .prompt:hover { border-color: var(--accent); transform: translateX(3px); }
+    .profile-bottom { margin-top: auto; padding-top: 22px; display: flex; justify-content: space-between; color: var(--muted); }
+    .profile-bottom strong { color: var(--secondary); }
+    .chat { display: flex; flex-direction: column; height: min(820px, calc(100vh - 135px)); min-height: 670px; }
+    .panel-top { justify-content: space-between; gap: 12px; padding: 17px 20px; border-bottom: 1px solid var(--border); }
+    .panel-label { font: 700 11px ui-monospace, monospace; letter-spacing: .11em; }
+    .panel-subtitle { color: var(--muted); font: 11px ui-monospace, monospace; margin-top: 4px; }
+    .panel-actions { gap: 12px; }
+    .model-pill { color: var(--secondary); border: 1px solid var(--border); border-radius: 6px; padding: 7px 9px; white-space: nowrap; max-width: 210px; overflow: hidden; text-overflow: ellipsis; font-size: 10px; }
+    .reset { background: transparent; border: 0; color: var(--muted); padding: 7px 0; font-size: 12px; white-space: nowrap; }
+    .reset:hover { color: var(--text); }
+    .scroll-area { flex: 1; min-height: 0; overflow-y: auto; padding: 22px; scrollbar-color: var(--border) transparent; scrollbar-width: thin; }
+    .welcome { display: grid; place-items: center; min-height: 100%; text-align: center; }
+    .welcome-inner { max-width: 390px; padding: 20px 4px 35px; }
+    .welcome-icon { margin: 0 auto 22px; width: 83px; height: 83px; border: 1px solid rgba(var(--rgb),.36); background: rgba(var(--rgb),.1); border-radius: 23px; display: grid; place-items: center; color: var(--accent); font: 800 34px var(--display); box-shadow: 0 0 65px rgba(var(--rgb), .12); }
+    .welcome-kicker { color: var(--accent); font: 700 11px ui-monospace,monospace; letter-spacing: .16em; }
+    .welcome h2 { font: 800 clamp(22px, 3vw, 31px)/1.18 var(--display); margin: 13px 0 11px; }
+    .welcome-description { font-size: 13px; color: var(--muted); line-height: 1.7; }
+    .message { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 24px; animation: appear .22s ease-out; }
+    .message.user { flex-direction: row-reverse; }
+    .avatar { flex: 0 0 32px; width: 32px; height: 32px; display: grid; place-items: center; background: var(--raised); border: 1px solid var(--border); color: var(--accent); border-radius: 9px; font: 800 11px var(--display); }
+    .message.user .avatar { color: var(--muted); background: transparent; }
+    .message-content { max-width: min(83%, 610px); min-width: 0; }
+    .message-title { gap: 10px; color: var(--muted); letter-spacing: .04em; margin: 0 0 7px 3px; }
+    .message-title strong { color: var(--text); }
+    .message.user .message-title { justify-content: flex-end; }
+    .bubble { background: var(--raised); border: 1px solid var(--border); border-radius: 3px 14px 14px 14px; padding: 14px 17px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.7; }
+    .message.user .bubble { background: rgba(var(--rgb),.12); border-color: rgba(var(--rgb),.26); border-radius: 14px 3px 14px 14px; }
+    .message.error .bubble { border-color: #e07178; color: #ffb7bc; background: rgba(225,80,87,.06); }
+    .message-meta { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 3px 0; }
+    .message-meta:empty { display: none; }
+    .chip { font: 10px ui-monospace,monospace; border: 1px solid var(--border); border-radius: 5px; padding: 3px 7px; color: var(--muted); }
+    .chip.mood { color: var(--secondary); }
+    .pending::after { content: " ..."; color: var(--accent); animation: pulse 1s infinite; }
+    .composer { border-top: 1px solid var(--border); padding: 15px 20px 18px; background: rgba(0,0,0,.05); }
+    .compose-head, .compose-foot { justify-content: space-between; gap: 10px; }
+    .compose-head { margin-bottom: 10px; font-size: 12px; }
+    .compose-head span, .compose-foot { color: var(--muted); font: 10px ui-monospace,monospace; }
+    .entry { display: flex; align-items: flex-end; gap: 10px; border: 1px solid var(--border); background: var(--raised); border-radius: 13px; padding: 9px; }
+    .entry:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(var(--rgb), .08); }
+    textarea { flex: 1; width: 100%; min-height: 48px; max-height: 170px; resize: vertical; border: 0; outline: 0; padding: 10px; background: transparent; color: var(--text); font-size: 13px; line-height: 1.5; }
+    textarea::placeholder { color: var(--muted); }
+    textarea:focus-visible { outline: 0; }
+    .send { min-height: 44px; padding: 0 16px; background: var(--accent); color: var(--on-accent); border: 0; border-radius: 9px; font-size: 12px; font-weight: 800; }
+    .send:hover { filter: brightness(1.1); }
     button:disabled { opacity: .6; cursor: wait; }
+    .compose-foot { margin-top: 10px; }
+    .footer { justify-content: space-between; gap: 10px; color: var(--muted); margin-top: 17px; font-size: 10px; }
+    .footer span:last-child { color: var(--secondary); }
+    @keyframes appear { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pulse { 50% { opacity: .4; } }
+    @media (max-width: 940px) {
+      .shell { padding: 20px 16px; }
+      .layout { grid-template-columns: 245px minmax(0,1fr); gap: 13px; }
+      .profile { padding: 13px; }
+      .portrait { min-height: 185px; }
+      .persona-name { font-size: 27px; }
+      .model-pill { max-width: 135px; }
+      .panel-top, .composer { padding: 14px; }
+      .scroll-area { padding: 17px 14px; }
+    }
+    @media (max-width: 720px) {
+      .shell { padding: 15px 11px; }
+      .topbar { margin-bottom: 14px; }
+      .version { display: none; }
+      .brand h1 { font-size: 17px; }
+      .layout { display: flex; flex-direction: column; gap: 12px; }
+      .profile { min-height: 0; display: grid; grid-template-columns: 85px minmax(0,1fr); gap: 0 13px; align-items: center; padding: 13px; }
+      .portrait { grid-row: span 3; height: 103px; min-height: 103px; border-radius: 10px; }
+      .portrait-mark { width: 54px; height: 54px; font-size: 24px; border-radius: 12px; }
+      .portrait::before { width: 90px; height: 90px; }
+      .portrait::after, .portrait-corner, .profile-bottom { display: none; }
+      .profile-code { margin: 0; font-size: 9px; }
+      .persona-name { font-size: 24px; }
+      .persona-description { margin: 4px 0 0; font-size: 12px; line-height: 1.5; }
+      .quick-section { grid-column: 1 / -1; margin-top: 14px; }
+      .prompts { display: flex; overflow-x: auto; padding-bottom: 3px; margin-top: 9px; }
+      .prompt { flex: 0 0 auto; width: auto; max-width: 225px; padding: 9px; }
+      .chat { height: min(800px, 75vh); min-height: 520px; }
+      .message-content { max-width: 89%; }
+      .panel-subtitle { display: none; }
+      .footer { margin-top: 12px; }
+    }
+    @media (max-width: 400px) {
+      .brand-logo { width: 35px; height: 35px; }
+      .brand { gap: 8px; }
+      .brand h1 { font-size: 15px; }
+      .overline { font-size: 9px; }
+      .model-pill, .compose-head span { display: none; }
+      .send { padding: 0 11px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+    }
   </style>
 </head>
 <body>
-  <main>
-    <h1>Meu Chatbot</h1>
-    <p class="descricao">
-      Qwen3 na minha VM · Lembra das últimas 3 trocas enquanto a página estiver aberta.
-    </p>
-    <div id="mensagens" role="log" aria-live="polite"></div>
-    <form id="formulario">
-      <label for="pergunta">Sua mensagem</label>
-      <textarea id="pergunta" rows="3" maxlength="4000" required></textarea>
-      <button id="enviar" type="submit">Enviar</button>
-    </form>
-  </main>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-logo" aria-hidden="true">⌖</div>
+        <div>
+          <p class="overline" id="brandEyebrow">PERSONA / INTERFACE LOCAL</p>
+          <h1 id="brandName">Local Chatbot</h1>
+        </div>
+      </div>
+      <div class="top-right">
+        <div class="status" id="status" data-state="loading">
+          <span class="dot" aria-hidden="true"></span>
+          <span id="statusText">Conectando...</span>
+        </div>
+        <span class="version">INTERFACE / 02</span>
+      </div>
+    </header>
+    <main class="layout">
+      <aside class="profile" aria-label="Persona ativa">
+        <div class="portrait" aria-hidden="true">
+          <span class="portrait-corner top" id="portraitTop">IDENTIDADE // ONLINE</span>
+          <div class="portrait-mark" id="portraitMark">AI</div>
+          <span class="portrait-corner bottom" id="portraitBottom">CHANNEL_01</span>
+        </div>
+        <p class="profile-code" id="profileCode">PERFIL 001 / ATIVO</p>
+        <h2 class="persona-name" id="personaName">Local Chatbot</h2>
+        <p class="persona-description" id="personaDescription">Uma conexão local com a persona configurada no servidor.</p>
+        <div class="quick-section">
+          <div class="section-label">Comece por aqui</div>
+          <div class="prompts" id="prompts"></div>
+        </div>
+        <div class="profile-bottom micro-label"><span>PERSONA CARREGADA</span><strong id="personaTag">DEFAULT</strong></div>
+      </aside>
+      <section class="chat" aria-label="Conversa">
+        <div class="panel-top">
+          <div>
+            <div class="panel-label">⌁ &nbsp; CANAL DE CONVERSA</div>
+            <div class="panel-subtitle">Conexão local · histórico temporário</div>
+          </div>
+          <div class="panel-actions">
+            <span class="model-pill" id="modelPill" title="Modelo da última resposta">MODELO / AGUARDANDO</span>
+            <button class="reset" id="newChat" type="button" title="Limpar o histórico">↻ Nova conversa</button>
+          </div>
+        </div>
+        <div class="scroll-area" id="scrollArea">
+          <div class="welcome" id="welcome">
+            <div class="welcome-inner">
+              <div class="welcome-icon" aria-hidden="true">⌁</div>
+              <div class="welcome-kicker" id="welcomeKicker">SISTEMA PRONTO</div>
+              <h2 id="welcomeTitle">Uma conversa diferente começa aqui.</h2>
+              <p class="welcome-description" id="welcomeDescription">Envie uma mensagem ou escolha uma sugestão ao lado.</p>
+            </div>
+          </div>
+          <div id="mensagens" role="log" aria-live="polite" aria-label="Histórico da conversa"></div>
+        </div>
+        <form class="composer" id="formulario">
+          <div class="compose-head">
+            <label for="pergunta"><strong>Sua mensagem</strong></label>
+            <span>ENTER para enviar · SHIFT + ENTER para quebrar linha</span>
+          </div>
+          <div class="entry">
+            <textarea id="pergunta" rows="2" maxlength="4000" required placeholder="Escreva sua mensagem aqui..."></textarea>
+            <button class="send" id="enviar" type="submit">Enviar ↗</button>
+          </div>
+          <div class="compose-foot">
+            <span>CONVERSA LOCAL / ÚLTIMAS 3 TROCAS EM CONTEXTO</span>
+            <span id="characterCount">0 / 4000</span>
+          </div>
+        </form>
+      </section>
+    </main>
+    <footer class="footer"><span>LOCAL CHATBOT · EXPERIÊNCIA POR PERSONA</span><span>PRIVADO · SEM HISTÓRICO PERMANENTE</span></footer>
+  </div>
   <script>
-    const formulario = document.querySelector("#formulario");
-    const pergunta = document.querySelector("#pergunta");
-    const enviar = document.querySelector("#enviar");
-    const mensagens = document.querySelector("#mensagens");
+    const $ = (selector) => document.querySelector(selector);
+    const formulario = $("#formulario");
+    const pergunta = $("#pergunta");
+    const enviar = $("#enviar");
+    const mensagens = $("#mensagens");
     const historico = [];
+    let enviando = false;
+    let perfilAtivo;
 
-    function adicionar(texto, classe = "") {
-      const elemento = document.createElement("div");
-      elemento.className = "mensagem " + classe;
-      elemento.textContent = texto;
-      mensagens.appendChild(elemento);
-      elemento.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      return elemento;
+    // A chave vem de /health -> persona, que é o nome do arquivo de persona no backend.
+    const perfis = {
+      default: {
+        nome: "Local Chatbot", iniciais: "AI", codigo: "DEFAULT",
+        codigoPerfil: "PERFIL 001 / ATIVO", topo: "PERSONA / INTERFACE LOCAL",
+        retrato: "IDENTIDADE // ONLINE",
+        descricao: "Uma conexão local com a persona configurada no servidor.",
+        saudacao: "SISTEMA PRONTO", titulo: "Uma conversa diferente começa aqui.",
+        subtitulo: "Envie sua primeira mensagem. O histórico fica apenas nesta página.",
+        sugestoes: ["Quem é você?", "Me conte algo interessante.", "Vamos criar um projeto?"]
+      },
+      bill: {
+        nome: "Bill", iniciais: "B", codigo: "BILL_01",
+        codigoPerfil: "PERFIL 001 / BILL", topo: "BILL / CONVERSA LOCAL",
+        retrato: "MODO // CLAREZA",
+        descricao: "Respostas diretas, ideias claras e uma conversa no seu ritmo.",
+        saudacao: "BILL ESTÁ A POSTOS", titulo: "Vamos direto ao ponto.",
+        subtitulo: "Pergunte, explore uma ideia ou comece um projeto. Bill está pronto para conversar.",
+        sugestoes: ["Qual é seu nome?", "Explique algo de forma simples.", "Me ajude com uma ideia."]
+      },
+      johnny: {
+        nome: "Johnny Silverhand", iniciais: "JS", codigo: "NIGHT_CITY",
+        codigoPerfil: "ARQUIVO 2077 / SILVERHAND", topo: "NIGHT CITY / CANAL PRIVADO",
+        retrato: "SIGNAL // 2077",
+        descricao: "Rock, rebeldia e opiniões sem filtro. Uma linha direta com o fantasma de Night City.",
+        saudacao: "CONEXÃO ESTABELECIDA", titulo: "Acorda, samurai.",
+        subtitulo: "A linha está aberta. Tem algo pra dizer ou vamos ficar ouvindo o ruído da cidade?",
+        sugestoes: ["Quem é você, Johnny?", "O que acha de Night City?", "Me dá um conselho, samurai."]
+      }
+    };
+
+    function identificarPerfil(nome) {
+      const valor = String(nome || "").trim().toLowerCase();
+      if (valor.includes("johnny") || valor.includes("silverhand")) return "johnny";
+      if (valor.includes("bill")) return "bill";
+      return "default";
+    }
+
+    function aplicarPerfil(nome) {
+      const tema = identificarPerfil(nome);
+      const perfil = { ...perfis[tema] };
+      if (tema === "default" && nome) {
+        perfil.nome = String(nome).replace(/[_-]/g, " ").replace(/\b\w/g, (letra) => letra.toUpperCase()).slice(0, 45);
+        perfil.codigo = String(nome).toUpperCase().slice(0, 20);
+      }
+      perfilAtivo = perfil;
+      document.documentElement.dataset.persona = tema;
+      document.title = perfil.nome + " · Local Chatbot";
+      $("#brandEyebrow").textContent = perfil.topo;
+      $("#brandName").textContent = perfil.nome;
+      $("#portraitMark").textContent = perfil.iniciais;
+      $("#portraitTop").textContent = perfil.retrato;
+      $("#portraitBottom").textContent = perfil.codigo;
+      $("#profileCode").textContent = perfil.codigoPerfil;
+      $("#personaName").textContent = perfil.nome;
+      $("#personaDescription").textContent = perfil.descricao;
+      $("#personaTag").textContent = perfil.codigo;
+      $("#welcomeKicker").textContent = perfil.saudacao;
+      $("#welcomeTitle").textContent = perfil.titulo;
+      $("#welcomeDescription").textContent = perfil.subtitulo;
+      const sugestoes = $("#prompts");
+      sugestoes.replaceChildren();
+      for (const texto of perfil.sugestoes) {
+        const botao = document.createElement("button");
+        botao.type = "button";
+        botao.className = "prompt";
+        const seta = document.createElement("span");
+        seta.textContent = "↗";
+        seta.setAttribute("aria-hidden", "true");
+        botao.append(seta, document.createTextNode(texto));
+        botao.addEventListener("click", () => {
+          if (enviando) return;
+          pergunta.value = texto;
+          atualizarContador();
+          pergunta.focus();
+        });
+        sugestoes.appendChild(botao);
+      }
+    }
+
+    function setStatus(estado, texto) {
+      $("#status").dataset.state = estado;
+      $("#statusText").textContent = texto;
+    }
+
+    async function detectarPersona() {
+      const controlador = new AbortController();
+      const timeout = setTimeout(() => controlador.abort(), 8000);
+      try {
+        const resposta = await fetch("/health", { cache: "no-store", signal: controlador.signal });
+        if (!resposta.ok) throw new Error("Servidor indisponível");
+        const dados = await resposta.json();
+        aplicarPerfil(dados.persona);
+        setStatus("online", "Servidor conectado");
+      } catch (_) {
+        setStatus("error", "Servidor indisponível");
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+
+    function atualizarContador() {
+      $("#characterCount").textContent = pergunta.value.length + " / 4000";
+    }
+
+    function rolarConversa() {
+      const area = $("#scrollArea");
+      area.scrollTo({ top: area.scrollHeight, behavior: "smooth" });
+    }
+
+    function adicionarMensagem(tipo, texto, pendente = false) {
+      $("#welcome").hidden = true;
+      const bloco = document.createElement("article");
+      bloco.className = "message" + (tipo === "user" ? " user" : "");
+      const avatar = document.createElement("div");
+      avatar.className = "avatar";
+      avatar.textContent = tipo === "user" ? "EU" : perfilAtivo.iniciais;
+      avatar.setAttribute("aria-hidden", "true");
+      const principal = document.createElement("div");
+      principal.className = "message-content";
+      const cabecalho = document.createElement("div");
+      cabecalho.className = "message-title";
+      const nome = document.createElement("strong");
+      nome.textContent = tipo === "user" ? "VOCÊ" : perfilAtivo.nome.toUpperCase();
+      const hora = document.createElement("span");
+      hora.textContent = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      cabecalho.append(nome, hora);
+      const balao = document.createElement("div");
+      balao.className = "bubble" + (pendente ? " pending" : "");
+      balao.textContent = texto;
+      const metadados = document.createElement("div");
+      metadados.className = "message-meta";
+      principal.append(cabecalho, balao, metadados);
+      bloco.append(avatar, principal);
+      mensagens.appendChild(bloco);
+      rolarConversa();
+      return { bloco, balao, metadados };
+    }
+
+    function adicionarEtiqueta(container, texto, estado = false) {
+      const etiqueta = document.createElement("span");
+      etiqueta.className = "chip" + (estado ? " mood" : "");
+      etiqueta.textContent = texto;
+      container.appendChild(etiqueta);
     }
 
     formulario.addEventListener("submit", async (evento) => {
       evento.preventDefault();
       const texto = pergunta.value.trim();
-      if (!texto || enviar.disabled) return;
-
-      adicionar("Você: " + texto, "usuario");
-      pergunta.value = "";
+      if (!texto || enviando) return;
+      enviando = true;
       enviar.disabled = true;
-      const resposta = adicionar("Gerando resposta…");
+      $("#newChat").disabled = true;
+      setStatus("loading", "Gerando resposta...");
+      adicionarMensagem("user", texto);
+      pergunta.value = "";
+      atualizarContador();
+      const resposta = adicionarMensagem("assistant", "Aguardando modelo", true);
+      const controlador = new AbortController();
+      // O fallback pode tentar dois backends de até 120 segundos cada.
+      const timeout = setTimeout(() => controlador.abort(), 270000);
+      const aviso = setTimeout(() => {
+        if (enviando) resposta.balao.textContent = "O modelo está processando. No servidor, isso pode levar um pouco mais de tempo";
+      }, 12000);
 
       try {
         const resultado = await fetch("/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-  		mensagem: texto,
-  		historico: historico
-		}),
-          signal: AbortSignal.timeout(150000)
+          body: JSON.stringify({ mensagem: texto, historico }),
+          signal: controlador.signal
         });
-        const dados = await resultado.json();
-        if (!resultado.ok) {
-          throw new Error(
-            typeof dados.detail === "string"
-              ? dados.detail
-              : "Não foi possível processar a mensagem."
-          );
+        const dados = await resultado.json().catch(() => ({}));
+        if (!resultado.ok) throw new Error(typeof dados.detail === "string" ? dados.detail : "Não foi possível processar a mensagem.");
+        if (typeof dados.resposta !== "string") throw new Error("O servidor retornou uma resposta inesperada.");
+        resposta.balao.classList.remove("pending");
+        resposta.balao.textContent = dados.resposta.trim() || "(Resposta vazia)";
+        if (typeof dados.modelo === "string" && dados.modelo) {
+          $("#modelPill").textContent = "MODELO / " + dados.modelo.toUpperCase();
+          $("#modelPill").title = "Última resposta: " + dados.modelo;
+          adicionarEtiqueta(resposta.metadados, "MODELO: " + dados.modelo);
         }
-        if (typeof dados.resposta !== "string") {
-          throw new Error("O servidor retornou uma resposta inesperada.");
+        if (typeof dados.estado === "string" && dados.estado) {
+          adicionarEtiqueta(resposta.metadados, "ESTADO: " + dados.estado.toUpperCase(), true);
         }
-        resposta.textContent = "Assistente: " + dados.resposta;
-	historico.push(
-  		{ role: "user", content: texto },
-  		{ role: "assistant", content: dados.resposta }
-	);
-
-	if (historico.length > 6) {
-  		historico.splice(0, historico.length - 6);
-	}
+        historico.push({ role: "user", content: texto }, { role: "assistant", content: dados.resposta });
+        if (historico.length > 6) historico.splice(0, historico.length - 6);
+        setStatus("online", "Servidor conectado");
       } catch (erro) {
-        resposta.textContent = "Erro: " + erro.message;
-        resposta.classList.add("erro");
+        resposta.balao.classList.remove("pending");
+        resposta.bloco.classList.add("error");
+        resposta.balao.textContent = erro.name === "AbortError" ? "A resposta demorou demais. Tente novamente." : "Erro: " + erro.message;
         pergunta.value = texto;
+        atualizarContador();
+        setStatus("error", "Falha na requisição");
       } finally {
+        clearTimeout(timeout);
+        clearTimeout(aviso);
+        enviando = false;
         enviar.disabled = false;
+        $("#newChat").disabled = false;
+        rolarConversa();
         pergunta.focus();
       }
     });
+
+    pergunta.addEventListener("input", atualizarContador);
+    pergunta.addEventListener("keydown", (evento) => {
+      if (evento.key === "Enter" && !evento.shiftKey && !evento.isComposing) {
+        evento.preventDefault();
+        formulario.requestSubmit();
+      }
+    });
+    $("#newChat").addEventListener("click", () => {
+      if (enviando) return;
+      historico.length = 0;
+      mensagens.replaceChildren();
+      $("#welcome").hidden = false;
+      $("#modelPill").textContent = "MODELO / AGUARDANDO";
+      $("#modelPill").title = "Modelo da última resposta";
+      pergunta.value = "";
+      atualizarContador();
+      pergunta.focus();
+    });
+
+    aplicarPerfil(null);
+    detectarPersona();
   </script>
 </body>
 </html>
