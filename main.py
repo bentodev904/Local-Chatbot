@@ -59,6 +59,7 @@ async def chat(dados: ChatRequest):
                     "options": {"num_ctx": NUM_CTX, "num_predict": NUM_PREDICT}})
                 r.raise_for_status()
             texto = r.json()["message"]["content"]
+            usado = modelo
             break
         except httpx.TimeoutException:
             erro = (504, "O modelo demorou demais para responder.")
@@ -74,7 +75,7 @@ async def chat(dados: ChatRequest):
     if m:
         estado = m.group(1).lower()
         texto = texto[m.end():]
-    return {"resposta": texto, "estado": estado}
+    return {"resposta": texto, "estado": estado, "modelo": usado}
 
 
 @app.get("/", response_class=FileResponse)
